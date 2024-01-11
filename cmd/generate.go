@@ -20,7 +20,7 @@ import (
 func NewGenerateCommand() *cobra.Command {
 	const StdIn = "-"
 	var configPath, secretName string
-	var verboseOutput bool
+	var verboseOutput, verboseSensitiveOutput bool
 
 	var command = &cobra.Command{
 		Use:   "generate <path>",
@@ -61,8 +61,11 @@ func NewGenerateCommand() *cobra.Command {
 				}
 			}
 
+			utils.VerboseToStdErr("Read %n manifests from source", len(manifests))
+
 			v := viper.New()
 			viper.Set("verboseOutput", verboseOutput)
+			viper.Set("verboseSensitiveOutput", verboseSensitiveOutput)
 			cmdConfig, err := config.New(v, &config.Options{
 				SecretName: secretName,
 				ConfigPath: configPath,
@@ -106,7 +109,11 @@ func NewGenerateCommand() *cobra.Command {
 					return err
 				}
 
-				fmt.Fprintf(cmd.OutOrStdout(), "%s---\n", output)
+				n, err := fmt.Fprintf(cmd.OutOrStdout(), "%s---\n", output)
+				if err != nil {
+					return err
+				}
+				utils.VerboseToStdErr("Wrote %d bytes to destination", n)
 			}
 
 			return nil
@@ -115,6 +122,7 @@ func NewGenerateCommand() *cobra.Command {
 
 	command.Flags().StringVarP(&configPath, "config-path", "c", "", "path to a file containing Vault configuration (YAML, JSON, envfile) to use")
 	command.Flags().StringVarP(&secretName, "secret-name", "s", "", "name of a Kubernetes Secret in the argocd namespace containing Vault configuration data in the argocd namespace of your ArgoCD host (Only available when used in ArgoCD). The namespace can be overridden by using the format <namespace>:<name>")
-	command.Flags().BoolVar(&verboseOutput, "verbose-sensitive-output", false, "enable verbose mode for detailed info to help with debugging. Includes sensitive data (credentials), logged to stderr")
+	command.Flags().BoolVar(&verboseOutput, "verbose-output", false, "enable verbose mode for detailed info to help with debugging (no sensitive data), logged to stderr")
+	command.Flags().BoolVar(&verboseSensitiveOutput, "verbose-sensitive-output", false, "enable verbose mode for detailed info to help with debugging. Includes sensitive data (credentials), logged to stderr")
 	return command
 }
